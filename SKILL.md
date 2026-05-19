@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Automatically triggered after task completion to spawn an independent subagent for adversarial review. The subagent receives the original user request, execution plan, and task outputs to objectively verify completion and identify issues.
+description: Automatically triggered after task completion to spawn an independent subagent for adversarial review. The subagent receives ONLY the original user request and execution plan to objectively verify task definition clarity and identify potential issues.
 ---
 
 # Adversarial Review Skill
