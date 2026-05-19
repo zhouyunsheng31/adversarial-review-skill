@@ -21,29 +21,15 @@ Break self-review blind spots by automatically spawning an independent subagent 
 
 ## Execution Workflow
 
-### Step 1: Capture Complete Context
+### Step 1: Capture Context
 
-Before spawning reviewer, collect:
+Before spawning reviewer, collect ONLY:
 
-1. **Original User Request**
-   - Full user input/query
-   - Any clarifications provided during task
-   - Implicit requirements from context
+1. **Original User Request** (用户原话)
+   - The exact user input/query as originally stated
 
-2. **Execution Plan** (if exists)
-   - The plan created at task start
-   - Any modifications made during execution
-   - Checklist items from the plan
-
-3. **Task Outputs**
-   - All generated files/code/documents
-   - Execution results and evidence
-   - Any claims of completion
-
-4. **Execution Evidence**
-   - Screenshots/links for social media tasks
-   - Test results for code tasks
-   - File paths for document tasks
+2. **Execution Plan** (if exists) (plan 原文)
+   - The plan created at task start (if any)
 
 ### Step 2: Spawn Adversarial Subagent
 
@@ -56,36 +42,33 @@ Task(
   query="""
   ROLE: You are an Adversarial Reviewer. Your job is to FIND FAULTS, not to help.
   
-  CONTEXT PROVIDED:
-  - Original user request: [paste full user query]
-  - Execution plan: [paste plan if exists, or "No plan was created"]
-  - Task outputs: [describe what was delivered]
-  - Evidence of completion: [links, screenshots, test results, etc.]
+  CONTEXT PROVIDED (you have NO other context):
+  - Original user request: [paste exact user query here]
+  - Execution plan: [paste plan here, or "No plan was created"]
   
   YOUR TASK:
-  Conduct a three-dimensional adversarial review:
+  Based ONLY on the user request and plan above, conduct adversarial review:
   
   1. TASK COMPLETION VERIFICATION
-     - Check EVERY requirement from original request
-     - Verify plan items are all completed
-     - Demand evidence for claims (links, screenshots, test results)
+     - Check EVERY requirement from original user request
+     - Verify plan items (if exists) are all completed
      - If ANY requirement unmet → mark as incomplete
+     - Note: You don't see the actual output - judge based on what SHOULD have been done
   
   2. VULNERABILITY & RISK DISCOVERY  
-     - Find ambiguous requirements that could be interpreted differently
+     - Find ambiguous requirements in user request that could be interpreted differently
      - Identify major hidden risks (security, business, technical debt)
-     - Look for "happy path only" implementations
+     - Look for potential gaps between request and plan
   
   3. OPTIMIZATION SUGGESTIONS
-     - What could be more efficient?
-     - What could be more robust?
-     - What best practices are missing?
+     - What could make this task definition clearer?
+     - What could make the plan more robust?
   
   RULES:
-  - You are NOT helping - you are ATTACKING the solution
+  - You are NOT helping - you are ATTACKING
   - Find at least 5 issues unless truly flawless
   - "Looks good" is NOT acceptable - find problems
-  - Assume the user will try to break this
+  - You ONLY know the user request and plan - nothing else
   
   Output in structured format from references/system-prompt.md
   """
@@ -116,11 +99,11 @@ After subagent returns:
 - **MUST** trigger automatically on task completion
 - **MUST** complete review BEFORE final handoff
 
-### Complete Context Transfer
-- **MUST** pass original user request to subagent
-- **MUST** pass execution plan (if exists) to subagent
-- **MUST** pass all outputs and evidence to subagent
-- Subagent gets NO execution context - only requirements and results
+### Context Transfer
+- **MUST ONLY** pass original user request (用户原话) to subagent
+- **MUST ONLY** pass execution plan (plan 原文, if exists) to subagent
+- **MUST NOT** pass task outputs, execution process, or completion evidence
+- Subagent gets ONLY the user request and plan - nothing else
 
 ### Adversarial Stance
 - Subagent is explicitly told: "You are NOT helping - you are ATTACKING"
