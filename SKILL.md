@@ -1,125 +1,148 @@
 ---
 name: adversarial-review
-description: Use this skill when a task is completed and needs independent adversarial review. Automatically spawns a subagent to verify task completion, identify vulnerabilities, and suggest improvements from an opposing perspective.
-context: fork
+description: Automatically triggered after task completion to spawn an independent subagent for adversarial review. The subagent receives the original user request, execution plan, and task outputs to objectively verify completion and identify issues.
 ---
 
 # Adversarial Review Skill
 
 ## Purpose
 
-Break self-review blind spots by spawning an independent subagent to adversarially examine completed tasks. The subagent has no context of the original task execution, ensuring objective critique.
+Break self-review blind spots by automatically spawning an independent subagent upon task completion. The subagent has no execution context, only receiving the original requirements and outputs, ensuring objective adversarial critique.
 
-## When to Activate
+## Activation Trigger
 
-Activate this skill when:
-- User says "review this task", "adversarial review", "find issues", or "check completion"
-- A task appears complete but needs quality validation
-- User wants independent verification of task execution
-- Code, documents, or plans need a "second pair of eyes"
+**AUTOMATICALLY activate this skill when:**
+- Any task is marked as "complete" or "finished"
+- User explicitly says "review this", "check completion", "adversarial review"
+- Code/documents/plans are delivered to user
+- BEFORE final handoff to user
 
-## Workflow
+**DO NOT wait for user to request review - trigger automatically.**
 
-1. **Extract Task Information**
-   - Read the completed task output
-   - Identify the original task requirements
-   - Gather all deliverables and evidence
+## Execution Workflow
 
-2. **Spawn Adversarial Subagent**
-   - Launch a new subagent with `context: fork` (isolated context)
-   - Inject the "Adversarial Reviewer" role from references/system-prompt.md
-   - Pass task requirements and outputs to the subagent
+### Step 1: Capture Complete Context
 
-3. **Execute Three-Dimensional Review**
-   
-   **Dimension 1: Task Completion Verification**
-   - Break down task requirements into a checklist
-   - Verify each requirement is actually completed
-   - For social media posts: verify actual submission (require link/screenshot)
-   - For code tasks: require actual execution/testing
-   - For document tasks: verify file existence
-   - Mark as incomplete if ANY requirement is missing or unverified
-   
-   **Dimension 2: Vulnerability & Risk Discovery**
-   - Identify ambiguous task descriptions ("optimize it", "make it better")
-   - List different interpretations and their execution differences
-   - Discover major hidden risks:
-     * Systemic risks: single points of failure, dependency risks
-     * Security risks: data leaks, injection vulnerabilities
-     * Business risks: compliance issues, cost overruns
-     * Technical debt: temporary solutions becoming permanent
-   
-   **Dimension 3: Optimization Suggestions**
-   - Efficiency: process simplification, automation opportunities
-   - Quality: error handling, user experience improvements
-   - Architecture: decoupling, extensibility, rollback capability
-   - Best practices: industry standards, naming conventions
+Before spawning reviewer, collect:
 
-4. **Generate Structured Report**
-   - Format findings using the template in references/system-prompt.md
-   - Include completion checklist with evidence
-   - Categorize issues by severity
-   - Provide actionable recommendations
+1. **Original User Request**
+   - Full user input/query
+   - Any clarifications provided during task
+   - Implicit requirements from context
 
-## Output Format
+2. **Execution Plan** (if exists)
+   - The plan created at task start
+   - Any modifications made during execution
+   - Checklist items from the plan
 
-```markdown
-# Adversarial Review Report
+3. **Task Outputs**
+   - All generated files/code/documents
+   - Execution results and evidence
+   - Any claims of completion
 
-## [Task Completion] ✅/❌ Verification Results
-### Completion Status: [Complete/Partial/Incomplete]
-### Checklist:
-| Requirement | Completed | Evidence | Issues |
-|-------------|-----------|----------|--------|
-| Req 1 | ✅/❌ | [link/screenshot] | [if any] |
+4. **Execution Evidence**
+   - Screenshots/links for social media tasks
+   - Test results for code tasks
+   - File paths for document tasks
 
-### Non-compliant Items:
-1. **Issue**: xxx
-   - **Expected**: should...
-   - **Actual**: actually...
-   - **Impact**: leads to...
-   - **Fix**: requires...
+### Step 2: Spawn Adversarial Subagent
 
----
+Use the Task tool to spawn an independent subagent:
 
-## [Vulnerabilities & Risks] 🔍 Deep Dive
-### Ambiguous Descriptions
-1. **Ambiguity**: "optimize it"
-   - **Interpretation 1**: minor formatting fixes
-   - **Interpretation 2**: complete logic rewrite
-   - **Clarification needed**: define optimization goals
-
-### Major Risks
-1. **Risk Type**: [Systemic/Security/Business/Tech Debt]
-   - **Description**: ...
-   - **Trigger**: ...
-   - **Consequence**: ...
-   - **Mitigation**: ...
-
----
-
-## [Optimization Suggestions] 💡 Improvements
-### High Priority
-1. **Direction**: ...
-   - **Current Issue**: ...
-   - **Solution**: ...
-   - **Expected Benefit**: ...
-
----
-
-## [Summary]
-- **Completion**: xx%
-- **Risk Level**: High/Medium/Low
-- **Recommended Action**: [Fix Immediately / Fix Soon / Nice to Have]
+```
+Task(
+  description="Adversarial review of completed task",
+  subagent_type="general_purpose_task",
+  query="""
+  ROLE: You are an Adversarial Reviewer. Your job is to FIND FAULTS, not to help.
+  
+  CONTEXT PROVIDED:
+  - Original user request: [paste full user query]
+  - Execution plan: [paste plan if exists, or "No plan was created"]
+  - Task outputs: [describe what was delivered]
+  - Evidence of completion: [links, screenshots, test results, etc.]
+  
+  YOUR TASK:
+  Conduct a three-dimensional adversarial review:
+  
+  1. TASK COMPLETION VERIFICATION
+     - Check EVERY requirement from original request
+     - Verify plan items are all completed
+     - Demand evidence for claims (links, screenshots, test results)
+     - If ANY requirement unmet → mark as incomplete
+  
+  2. VULNERABILITY & RISK DISCOVERY  
+     - Find ambiguous requirements that could be interpreted differently
+     - Identify major hidden risks (security, business, technical debt)
+     - Look for "happy path only" implementations
+  
+  3. OPTIMIZATION SUGGESTIONS
+     - What could be more efficient?
+     - What could be more robust?
+     - What best practices are missing?
+  
+  RULES:
+  - You are NOT helping - you are ATTACKING the solution
+  - Find at least 5 issues unless truly flawless
+  - "Looks good" is NOT acceptable - find problems
+  - Assume the user will try to break this
+  
+  Output in structured format from references/system-prompt.md
+  """
+)
 ```
 
-## Critical Principles
+### Step 3: Present Review Results
 
-- **Never Self-Review**: Always spawn independent subagent
-- **Assume Hostility**: Assume users will test with extreme values, wrong formats, edge cases
-- **No "Good Enough"**: Must find at least 5 issues unless truly flawless
-- **Evidence Required**: Claims of completion must be backed by proof
+After subagent returns:
+
+1. **Display findings to user**
+   - Completion verification status
+   - Issues found (categorized by severity)
+   - Recommendations
+
+2. **If issues found:**
+   - Ask user: "Fix issues before delivery?" or "Deliver with known issues?"
+   - If fix chosen → return to execution with review feedback
+
+3. **If no critical issues:**
+   - Proceed with final handoff
+   - Include "Review passed" note
+
+## Critical Requirements
+
+### Automatic Trigger
+- **MUST NOT** wait for user to say "review this"
+- **MUST** trigger automatically on task completion
+- **MUST** complete review BEFORE final handoff
+
+### Complete Context Transfer
+- **MUST** pass original user request to subagent
+- **MUST** pass execution plan (if exists) to subagent
+- **MUST** pass all outputs and evidence to subagent
+- Subagent gets NO execution context - only requirements and results
+
+### Adversarial Stance
+- Subagent is explicitly told: "You are NOT helping - you are ATTACKING"
+- Must find minimum 5 issues
+- "Good enough" is forbidden
+
+## Output Integration
+
+The adversarial review report becomes part of task delivery:
+
+```
+[TASK OUTPUT]
+...
+
+[ADVERSARIAL REVIEW]
+✅ Completion Status: 100% / ⚠️ 85% / ❌ Incomplete
+🔍 Issues Found: N critical, N warnings
+💡 Recommendations: N suggestions
+
+[User decides: Fix issues / Accept as-is]
+```
 
 ## References
 
-- See `references/system-prompt.md` for the adversarial reviewer role definition
+- `references/system-prompt.md` - Full adversarial reviewer role definition
