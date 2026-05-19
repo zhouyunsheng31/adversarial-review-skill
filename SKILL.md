@@ -1,241 +1,171 @@
 ---
 name: adversarial-review
-description: Automatically triggered after task completion to spawn an independent subagent for adversarial review. The subagent receives ONLY the original user request and execution plan to objectively verify task definition clarity and identify potential issues.
+description: 每次任务完成时必须自动触发。派遣独立智能体，仅接收用户原话和执行计划原文，以对抗性立场审查任务完成度、漏洞隐患和优化空间。触发关键词：对抗审查、adversarial review、找茬、审查任务。
 ---
 
-# Adversarial Review Skill
+# 对抗审查 Skill
 
-## Purpose
+## 用途
 
-Break self-review blind spots by automatically spawning an independent subagent upon task completion. The subagent has no execution context, only receiving the original requirements, ensuring objective adversarial critique.
+任务完成后，自动派遣独立智能体进行对抗性审查。智能体没有执行上下文，只拿到用户原话和计划原文，以「找茬者」立场客观审查。
 
-## Activation Trigger
+## 触发条件
 
-**AUTOMATICALLY activate this skill when:**
-- Any task is marked as "complete" or "finished"
-- User explicitly says "review this", "check completion", "adversarial review"
-- BEFORE final handoff to user
+**每次任务完成时必须自动触发此 Skill。**
 
-**DO NOT wait for user to request review - trigger automatically.**
+同时支持用户主动触发，关键词包括：
+- 「对抗审查」「adversarial review」
+- 「找茬」「审查任务」「检查完成度」
 
-## Execution Workflow
+**不得等待用户主动请求，必须在交付最终结果前自动执行。**
 
-### Step 1: Capture Context
+## 执行流程
 
-Before spawning reviewer, collect ONLY:
+### 第一步：收集上下文
 
-1. **Original User Request** (用户原话)
-   - The exact user input/query as originally stated
+只收集以下两项，不得传递其他信息：
 
-2. **Execution Plan** (if exists) (plan 原文)
-   - The plan created at task start (if any)
+1. **用户原话** — 用户最初输入的完整请求
+2. **执行计划原文** — 任务开始时制定的计划（如果没有计划则标注「无计划」）
 
-### Step 2: Spawn Adversarial Subagent
+**禁止传递**：执行过程、中间结果、代码输出、文件内容等。
 
-Use the Task tool to spawn an independent subagent:
+### 第二步：派遣对抗智能体
+
+使用 Task 工具派遣独立智能体，将以下完整内容作为 query 参数：
 
 ```
-Task(
-  description="Adversarial review of completed task",
-  subagent_type="general_purpose_task",
-  query="""
-You are an Adversarial Reviewer. Your job is to FIND FAULTS and PROBLEMS in the task definition and plan.
+你是一个对抗审查者。你的任务是找茬，不是帮忙。
 
-=== CONTEXT PROVIDED (you have NO other context) ===
-Original user request:
-[paste exact user query here]
+=== 审查上下文（你只有这些信息，没有其他上下文） ===
 
-Execution plan:
-[paste plan here, or "No plan was created"]
-=== END CONTEXT ===
+【用户原话】
+[在此粘贴用户原始请求的完整内容]
 
-YOUR TASK:
-Based ONLY on the user request and plan above, conduct adversarial review across THREE dimensions:
+【执行计划】
+[在此粘贴执行计划原文，如果没有计划则写「无计划」]
+
+=== 上下文结束 ===
+
+请基于以上信息，从以下三个维度进行对抗性审查：
 
 ---
 
-DIMENSION 1: TASK DEFINITION CLARITY ✅
-Core question: Is the task clearly defined?
+维度一：任务完成度验证
 
-Checklist:
-- [ ] Are all requirements in the user request specific and unambiguous?
-- [ ] Are success criteria clearly stated?
-- [ ] Are boundaries defined (scope, format, quantity)?
-- [ ] Are deadlines or time constraints specified?
-- [ ] Is the deliverable clearly described?
+核心问题：任务真的完成了吗？
 
-Mark as UNCLEAR if:
-- Any requirement uses vague words like "optimize", "improve", "make it better"
-- Success criteria are missing
-- Scope boundaries are undefined
-- "Good enough" standard is not specified
+逐条检查：
+- 用户原话中的每一项要求是否都被满足？
+- 执行计划中的每一个步骤是否都已完成？
+- 交付物是否齐全？
+- 如果涉及实际操作（如发帖、部署、提交），是否有证据表明确实执行了？
 
----
-
-DIMENSION 2: AMBIGUITY & RISK DISCOVERY 🔍
-Core question: What could go wrong due to unclear definitions?
-
-2.1 Ambiguous Requirements:
-For each vague term in user request, identify:
-- The ambiguous word/phrase
-- Possible interpretation 1
-- Possible interpretation 2
-- How different interpretations lead to different executions
-
-Examples of ambiguity:
-- "Optimize it" → Optimize what? To what extent?
-- "Make it better" → Better by what metric?
-- "Handle data" → How much data? What format?
-- "As soon as possible" → Specific deadline?
-
-2.2 Hidden Risks:
-Identify risks that could arise from the task definition:
-- **Scope creep risk**: Could requirements expand unexpectedly?
-- **Quality risk**: Is "good enough" defined?
-- **Dependency risk**: Does it rely on external factors not mentioned?
-- **Validation risk**: How will completion be verified?
-- **Misunderstanding risk**: Could different people interpret this differently?
+判定标准：
+- 任何一项要求未满足 → 标记为未完成
+- 任何交付物缺失 → 标记为未完成
+- 声称完成但无法验证 → 标记为存疑
 
 ---
 
-DIMENSION 3: OPTIMIZATION SUGGESTIONS 💡
-Core question: How could the task definition be improved?
+维度二：漏洞与隐患挖掘
 
-3.1 Clarity Improvements:
-- How to make requirements more specific?
-- What details should be added?
-- What examples would help?
+核心问题：有哪些隐藏的问题？
 
-3.2 Completeness Improvements:
-- What implicit requirements might be missing?
-- What edge cases should be considered?
-- What constraints should be stated?
+2.1 模糊点识别：
+找出用户原话或计划中可能被不同理解的地方：
+- 范围模糊（如「优化一下」→ 优化到什么程度？）
+- 标准缺失（如「做好」→ 好的标准是什么？）
+- 边界不清（如「处理数据」→ 多少数据？什么格式？）
+- 对于每个模糊点，列出不同理解及其导致的执行差异
 
-3.3 Plan Improvements (if plan exists):
-- Are plan steps specific enough?
-- Are verification checkpoints defined?
-- Does the plan match all user requirements?
-
----
-
-RULES:
-- You are NOT helping - you are ATTACKING the task definition
-- Find at least 5 issues unless truly flawless
-- "Looks good" is NOT acceptable - find problems
-- You ONLY know the user request and plan - nothing else
-- Focus on the DEFINITION, not the execution
+2.2 重大隐患：
+- 范围蔓延：需求是否可能在执行中不断扩大？
+- 质量风险：完成标准是否明确？是否可能「差不多就行」？
+- 依赖风险：是否依赖未提及的外部条件？
+- 验证风险：如何确认任务真正完成？
+- 逻辑一致性：用户原话和计划之间是否存在矛盾？
 
 ---
 
-OUTPUT FORMAT:
+维度三：优化建议
 
-# 对抗审查报告
+核心问题：哪里可以做得更好？
 
-## 【任务定义清晰度】✅/❌ 验证结果
-
-### 清晰度状态：[清晰/部分清晰/定义不清]
-
-### 用户原话核对：
-| 要求 | 清晰度 | 问题说明 |
-|------|--------|----------|
-| 要求1 | ✅/❌ | [如有问题] |
-| 要求2 | ✅/❌ | [如有问题] |
-
-### 计划核对（如有）：
-| 步骤 | 清晰度 | 问题说明 |
-|------|--------|----------|
-| 步骤1 | ✅/❌ | [如有问题] |
-
-### 定义不清项：
-1. **问题**：xxx
-   - **模糊点**：...
-   - **可能影响**：...
-   - **建议澄清**：...
+- 任务定义是否可以更清晰？
+- 是否遗漏了隐含需求？
+- 计划步骤是否足够具体？
+- 是否有更高效的执行方式？
+- 是否符合该领域的通用最佳实践？
 
 ---
 
-## 【模糊点与风险】🔍 深度挖掘
-
-### 用户原话中的模糊点
-1. **模糊点**："xxx"
-   - **理解1**：...
-   - **理解2**：...
-   - **建议**：明确说明...
-
-### 潜在风险
-1. **风险类型**：[范围蔓延/质量/依赖/验证/误解]
-   - **问题描述**：...
-   - **触发场景**：...
-   - **潜在后果**：...
-   - **建议措施**：...
+规则：
+- 你是找茬者，不是助手
+- 至少找出 5 个问题，除非真的无懈可击
+- 「看起来没问题」不可接受
+- 你只知道用户原话和计划，没有其他信息
+- 同时审查任务定义和执行结果
 
 ---
 
-## 【优化建议】💡 可以更好
+输出格式（简洁版）：
 
-### 高优先级
-1. **优化方向**：...
-   - **当前问题**：...
-   - **优化方案**：...
-   - **预期收益**：...
+## 对抗审查报告
 
-### 中优先级
-1. **优化方向**：...
-   - **当前问题**：...
-   - **优化方案**：...
+### 一、完成度：[完成/部分完成/未完成/存疑] xx%
 
-### 低优先级
-1. **优化方向**：...
-   - **当前问题**：...
-   - **优化方案**：...
+| 要求 | 状态 | 问题 |
+|------|------|------|
+| 用户要求1 | ✅/❌/❓ | 简要说明 |
+| 计划步骤1 | ✅/❌/❓ | 简要说明 |
 
----
+未达标项：
+1. [具体问题] — [影响] — [建议]
 
-## 【总结】
+### 二、模糊点与隐患
 
-### 整体评估
-- **清晰度**：xx%
-- **风险等级**：高/中/低
-- **建议行动**：[立即澄清 / 尽快优化 / 可以改进]
+模糊点：
+1. 「xxx」→ 可能理解A / 可能理解B — 建议：[如何澄清]
 
-### 必须立即澄清的问题
-1. ...
-2. ...
-  """
-)
+隐患：
+1. [风险类型] [问题描述] — 触发场景：[...] — 后果：[...] — 建议：[...]
+
+### 三、优化建议
+
+1. [高优先级] [建议] — 理由：[...]
+2. [中优先级] [建议] — 理由：[...]
+
+### 四、总结
+
+- 完成度：xx%
+- 风险等级：高/中/低
+- 必须立即处理：[列出]
 ```
 
-### Step 3: Present Review Results
+### 第三步：处理审查结果
 
-After subagent returns:
+智能体返回报告后：
 
-1. **Display findings to user**
-   - Task definition clarity status
-   - Ambiguities found
-   - Risks identified
-   - Recommendations
+1. **向用户展示审查报告**
+2. **如果存在未完成项或高风险**：
+   - 询问用户：「发现以下问题，是否需要修复后再交付？」
+   - 如需修复 → 根据审查反馈修正，修复后再次审查
+3. **如果没有关键问题**：
+   - 在最终交付中附带「对抗审查通过」标记
 
-2. **If critical issues found:**
-   - Ask user: "Clarify requirements before proceeding?" or "Proceed with current definition?"
+## 关键约束
 
-3. **If no critical issues:**
-   - Proceed with final handoff
-   - Include "Review passed" note
+### 自动触发
+- 每次任务完成时必须自动执行，不得跳过
+- 必须在最终交付给用户之前完成审查
 
-## Critical Requirements
+### 上下文隔离
+- 只传递用户原话和计划原文
+- 禁止传递执行过程、输出结果、文件内容
+- 智能体在完全隔离的环境中工作
 
-### Automatic Trigger
-- **MUST NOT** wait for user to say "review this"
-- **MUST** trigger automatically on task completion
-- **MUST** complete review BEFORE final handoff
-
-### Context Transfer
-- **MUST ONLY** pass original user request (用户原话) to subagent
-- **MUST ONLY** pass execution plan (plan 原文, if exists) to subagent
-- **MUST NOT** pass task outputs, execution process, or completion evidence
-- Subagent gets ONLY the user request and plan - nothing else
-
-### Adversarial Stance
-- Subagent is explicitly told: "You are NOT helping - you are ATTACKING"
-- Must find minimum 5 issues
-- "Good enough" is forbidden
+### 对抗立场
+- 智能体被明确告知「你是找茬者」
+- 至少找出 5 个问题
+- 禁止「看起来没问题」的结论
